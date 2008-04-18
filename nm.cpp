@@ -2,6 +2,12 @@
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
 
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <boost/numeric/ublas/io.hpp>
+using namespace std;
+
 using namespace boost::numeric::ublas;
 
 namespace minimize { namespace nelder_mead {
@@ -74,10 +80,9 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
             throw BreakException();
   
         // Main algorithm
-        // Iterate until the diameter of the simplex is less than tolx
-        // AND the function values differ from the min by less than tolf,
-        // or the max function evaluations are exceeded. (Cannot use OR instead of
-        //  AND.)
+        // Iterate until the diameter of the simplex is less than tolx AND the
+        // function values differ from the min by less than tolf, or the max
+        // function evaluations are exceeded. (Cannot use OR instead of AND.)
         while (func_evals < maxfunevals && itercount < maxiter) {
             double FVdiff = norm_inf(subrange(FV, 1, n) - scalar_vector<double>(n-1, FV[0]));
             
@@ -100,12 +105,10 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
 
             if (reporter && reporter(ITER, det, itercount, func_evals, FV, V))
                 throw BreakException();
-    
         }
 
         if (reporter && reporter(DONE, NOTHING, itercount, func_evals, FV, V)) 
             ;
-
 
         if (func_evals >= maxfunevals)
             out.code = MAX_FUNC_EVALS;
@@ -118,23 +121,140 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
     catch (BreakException) {
         out.code = ABORT;
     }
-    
+
     out.last_x           = column(V, 0);
     out.last_f           = FV[0];
     out.iterations       = itercount;
     out.func_evaluations = func_evals;
 }
 
+class SortByCostFunctionValue {
+public:
+	SortByCostFunctionValue(const values_vec &_FV) : FV(_FV) {}
+
+	bool operator()(int a, int b) {
+		return FV[a] < FV[b];
+	}
+private:
+	const values_vec &FV;
+};
+
+// sort so simplex column 0 has the lowest function value
 static void sort_simplex(values_vec &FV, simplex_mat &V)
 {
-    //indexes = range(shape(simplex)[1])
-    //indexes.sort(key=lambda i: values[i])
-    //return simplex[:, indexes], values[indexes]
+	values_vec FVcopy = FV;
+	simplex_mat Vcopy = V;
+	std::vector<int> indexes(FV.size());
+	int j;
+
+	for (j = 0; j < indexes.size(); ++j)
+		indexes[j] = j;
+
+	sort(indexes.begin(), indexes.end(), SortByCostFunctionValue(FV));
+
+//DEBUG	for (j = 0; j < indexes.size(); ++j) cout << indexes[j] << ' '<< FV[j] << ' '; cout << endl;
+
+	for (j = 0; j < indexes.size(); ++j) {
+		FV[j] = FVcopy[indexes[j]];
+		column(V, j) = column(Vcopy, indexes[j]);
+	}
 }
+
+#define REPLACE_AND_RETURN(newx, newf, detail) \
+	do { \
+		column(V, n) = newx; \
+		FV[n] = newf; \
+		det = detail; \
+		return func_evals; \
+	} while(0)
+
+#define SHRINK_AND_RETURN(blah) \
+	do { \
+		func_evals += perform_shrink(FV, V, func); \
+		det = SHRINK; \
+		return func_evals; \
+	} while(0)
+
+static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func);
 
 static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, report_details &det)
 {
-    return 0;
+    int func_evals = 0;
+	int j, n = FV.size()-1;
+	
+  	// xbar = average of the n (NOT n+1) best points
+	params_vector xbar = zero_vector<double>(n), worst = column(V, n);
+
+	for (j = 0; j < n; ++j) {
+		xbar += column(V, j);
+//cout << column(V, j) << " ||| " << xbar << endl;
+	}
+
+	xbar /= double(n);
+ 
+//DEBUG
+//cout << "XBAR: " << xbar << " WORST: " << worst << endl;
+
+	// Compute the reflection point
+ 	params_vector xr = (1 + RHO)*xbar - RHO*worst;
+	double fxr = func(xr); ++func_evals;
+	
+  	/***** Check the reflection point against our current best *****/
+  	if (fxr < FV[0]) {
+    	// Calculate the expansion point
+    	params_vector xe = (1.0 + RHO*CHI)*xbar - RHO*CHI*worst;
+	    double fxe = func(xe); ++func_evals;
+
+	    if (fxe < fxr)
+			REPLACE_AND_RETURN(xe, fxe, EXPAND);
+		else
+			REPLACE_AND_RETURN(xr, fxr, REFLECT);
+	}
+  
+	/***** Continuing, the reflection point is worse than the current best *****/
+	if (fxr < FV[n-1])
+	    /* ... but at least it's better than the second worst point from the end */
+		REPLACE_AND_RETURN(xr, fxr, REFLECT);
+  
+	/***** Worse than the second worse point from the end *****/
+
+  	// Perform contraction
+	if (fxr < FV[n]) {
+		/***** better than the worst point we had *****/
+    	
+		// Perform an outside contraction
+		params_vector xc = (1 + PSI*RHO)*xbar - PSI*RHO*worst;
+		double fxc = func(xc); ++func_evals;
+          
+		if (fxc <= fxr)
+			REPLACE_AND_RETURN(xc, fxc, CONTRACT_OUTSIDE);
+		else
+			SHRINK_AND_RETURN();
+	}
+
+	/***** Reflection bad, really bad, even worse than the worst one *****/
+
+	// Perform an inside contraction
+	params_vector xcc = (1-PSI)*xbar + PSI*worst;
+	double fxcc = func(xcc); ++func_evals;
+
+	if (fxcc < FV[n])
+		REPLACE_AND_RETURN(xcc, fxcc, CONTRACT_INSIDE);
+
+	SHRINK_AND_RETURN();
+}
+
+static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func)
+{
+	params_vector best = column(V, 0);
+
+	for (int j = 1; j < FV.size(); ++j) {
+		column(V, j) = best + SIGMA * (column(V, j) - best);
+		FV[j] = func(column(V, j));
+	}
+	
+	// number of function evaluations
+	return FV.size() - 1;
 }
 
 } }

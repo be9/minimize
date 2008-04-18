@@ -13,9 +13,11 @@ PSI   = 0.5
 SIGMA = 0.5
 
 def dumbreporter(what, itercount, func_evals, details, v, fv):
+  print "=================================================="
   print "Iteration %d (%d func. evals): %s / %s\n" % (itercount, func_evals, what, details)
-  print v
-  print fv
+  print "SIMPLEX: ", v
+  print "VALUES:  ", fv
+  print "--------------------------------------------------"
   return False
   
 # _change_simplex finds the direction where to go and transforms the simplex
