@@ -9,5 +9,4 @@ namespace minimize {
     typedef double (*cost_function)(const params_vector &);
 }
 
-
 #endif

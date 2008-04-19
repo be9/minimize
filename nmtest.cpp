@@ -8,7 +8,9 @@ using namespace std;
 using namespace minimize;
 using namespace minimize::nelder_mead;
 
-#define WOODS
+#define PROFILE
+
+//#define WOODS
 
 #ifndef WOODS
 double func(const params_vector &params)
@@ -24,8 +26,8 @@ params_vector initial()
 {
     params_vector x0(2);
 
-    x0[0] = 100.0;
-    x0[1] = 100.0;
+    x0[0] = 5.0;
+    x0[1] = 5.0;
 
     return x0;
 }
@@ -88,6 +90,7 @@ int main()
 {
     output out;
 
+#ifndef PROFILE
     run(initial(), func, out, reporter);
 
     static const char *return_codes[] = {
@@ -100,6 +103,10 @@ int main()
     cout << "Func. evals: " << out.func_evaluations << endl;
     cout << "Reached min: " << out.last_f << endl;
     cout << "Params vec:  " << out.last_x << endl;
+#else
+    for (int i = 0; i < 1000; ++i)
+        run(initial(), func, out);
+#endif
 
     return 0;
 }

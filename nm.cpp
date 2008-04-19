@@ -1,12 +1,7 @@
 #include "nm.h"
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
-
-#include <iostream>
-#include <iomanip>
 #include <vector>
-#include <boost/numeric/ublas/io.hpp>
-using namespace std;
 
 using namespace boost::numeric::ublas;
 
@@ -152,8 +147,6 @@ static void sort_simplex(values_vec &FV, simplex_mat &V)
 
 	sort(indexes.begin(), indexes.end(), SortByCostFunctionValue(FV));
 
-//DEBUG	for (j = 0; j < indexes.size(); ++j) cout << indexes[j] << ' '<< FV[j] << ' '; cout << endl;
-
 	for (j = 0; j < indexes.size(); ++j) {
 		FV[j] = FVcopy[indexes[j]];
 		column(V, j) = column(Vcopy, indexes[j]);
@@ -185,16 +178,11 @@ static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, re
   	// xbar = average of the n (NOT n+1) best points
 	params_vector xbar = zero_vector<double>(n), worst = column(V, n);
 
-	for (j = 0; j < n; ++j) {
+	for (j = 0; j < n; ++j)
 		xbar += column(V, j);
-//cout << column(V, j) << " ||| " << xbar << endl;
-	}
 
 	xbar /= double(n);
  
-//DEBUG
-//cout << "XBAR: " << xbar << " WORST: " << worst << endl;
-
 	// Compute the reflection point
  	params_vector xr = (1 + RHO)*xbar - RHO*worst;
 	double fxr = func(xr); ++func_evals;
