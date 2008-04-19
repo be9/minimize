@@ -5,7 +5,6 @@
 #include "minimize.h"
 
 // Minimize proxy
-
 namespace minimize { namespace proxy {
 
 enum constraint_state { 
@@ -35,7 +34,7 @@ public:
     static double costfunc(const params_vector &vec, void *arg);
 
 private:
-    const constraints &cons;
+    const constraints cons;
     cost_function func;
     void *farg;
     
