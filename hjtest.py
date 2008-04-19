@@ -12,6 +12,6 @@ def rosenbrock3(vec):
 
   return (1-x)**2 + 100*((y-x*x)**2) + (1-y)**2 + 100*((z-y*y)**2)
 
-x0 = array([50.0, 5.0])
+x0 = array([5.0, 5.0])
 ret = hj.hooke_jeeves(x0, rosenbrocks, hj.dumbreporter)
 print ret
