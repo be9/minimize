@@ -33,6 +33,7 @@ typedef bool (*report_func)(report_stage stage, int iter, int func_evals,
 void run(
         const params_vector &x0,                // initial guess
         cost_function       func,               // cost function
+        void                *farg,				// cost function arg
         output              &out,               // output results
         report_func         reporter = 0,       // reporter function
         int                 maxiter = 5000,   	// max. iterations

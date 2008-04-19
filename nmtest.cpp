@@ -13,7 +13,7 @@ using namespace minimize::nelder_mead;
 //#define WOODS
 
 #ifndef WOODS
-double func(const params_vector &params)
+double func(const params_vector &params, void *)
 {
     assert(params.size() == 2);
 
@@ -34,7 +34,7 @@ params_vector initial()
 #else
 /* Woods -- a la More, Garbow & Hillstrom (TOMS algorithm 566) */
 
-double func(const params_vector &x)
+double func(const params_vector &x, void *)
 {
 	double s1, s2, s3, t1, t2, t3, t4, t5;
 	s1 = x[1] - x[0]*x[0];
@@ -91,7 +91,7 @@ int main()
     output out;
 
 #ifndef PROFILE
-    run(initial(), func, out, reporter);
+    run(initial(), func, 0, out, reporter);
 
     static const char *return_codes[] = {
         "SUCCESS", "ABORT", "MAX_FUNC_EVALS", "MAX_ITER"
@@ -105,7 +105,7 @@ int main()
     cout << "Params vec:  " << out.last_x << endl;
 #else
     for (int i = 0; i < 1000; ++i)
-        run(initial(), func, out);
+        run(initial(), func, 0, out);
 #endif
 
     return 0;

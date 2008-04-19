@@ -15,11 +15,13 @@ const double SIGMA = 0.5;
 
 // sort so simplex column 0 has the lowest function value
 static void sort_simplex(values_vec &FV, simplex_mat &V);
-static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, report_details &det);
+static int change_simplex(values_vec &FV, simplex_mat &V, 
+		cost_function func, void *farg, report_details &det);
 
 struct BreakException {};
 
-void run(const params_vector &x0, cost_function func, output &out, report_func reporter,
+void run(const params_vector &x0, cost_function func, void *farg, 
+		output &out, report_func reporter,
         int maxiter, int maxfunevals, double tolx, double tolfun)
 {
     int n = x0.size();
@@ -36,7 +38,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
 
     // Place input guess in the simplex! (credit L.Pfeffer at Stanford)
     column(V, 0) = x0;
-    FV[0] = func(x0);
+    FV[0] = func(x0, farg);
   
     int func_evals = 1;
     int itercount = 0;
@@ -63,7 +65,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
                 y[j] = ZERO_TERM_DELTA;
 
             column(V, j+1) = y;
-            FV[j+1] = func(y);
+            FV[j+1] = func(y, farg);
         }
 
         sort_simplex(FV, V);
@@ -92,7 +94,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
                 break;
 
             report_details det;
-            func_evals += change_simplex(FV, V, func, det);
+            func_evals += change_simplex(FV, V, func, farg, det);
 
             sort_simplex(FV, V);
 
@@ -163,14 +165,15 @@ static void sort_simplex(values_vec &FV, simplex_mat &V)
 
 #define SHRINK_AND_RETURN(blah) \
 	do { \
-		func_evals += perform_shrink(FV, V, func); \
+		func_evals += perform_shrink(FV, V, func, farg); \
 		det = SHRINK; \
 		return func_evals; \
 	} while(0)
 
-static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func);
+static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func, void *farg);
 
-static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, report_details &det)
+static int change_simplex(values_vec &FV, simplex_mat &V, 
+		cost_function func, void *farg, report_details &det)
 {
     int func_evals = 0;
 	int j, n = FV.size()-1;
@@ -185,13 +188,13 @@ static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, re
  
 	// Compute the reflection point
  	params_vector xr = (1 + RHO)*xbar - RHO*worst;
-	double fxr = func(xr); ++func_evals;
+	double fxr = func(xr, farg); ++func_evals;
 	
   	/***** Check the reflection point against our current best *****/
   	if (fxr < FV[0]) {
     	// Calculate the expansion point
     	params_vector xe = (1.0 + RHO*CHI)*xbar - RHO*CHI*worst;
-	    double fxe = func(xe); ++func_evals;
+	    double fxe = func(xe, farg); ++func_evals;
 
 	    if (fxe < fxr)
 			REPLACE_AND_RETURN(xe, fxe, EXPAND);
@@ -212,7 +215,7 @@ static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, re
     	
 		// Perform an outside contraction
 		params_vector xc = (1 + PSI*RHO)*xbar - PSI*RHO*worst;
-		double fxc = func(xc); ++func_evals;
+		double fxc = func(xc, farg); ++func_evals;
           
 		if (fxc <= fxr)
 			REPLACE_AND_RETURN(xc, fxc, CONTRACT_OUTSIDE);
@@ -224,7 +227,7 @@ static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, re
 
 	// Perform an inside contraction
 	params_vector xcc = (1-PSI)*xbar + PSI*worst;
-	double fxcc = func(xcc); ++func_evals;
+	double fxcc = func(xcc, farg); ++func_evals;
 
 	if (fxcc < FV[n])
 		REPLACE_AND_RETURN(xcc, fxcc, CONTRACT_INSIDE);
@@ -232,13 +235,13 @@ static int change_simplex(values_vec &FV, simplex_mat &V, cost_function func, re
 	SHRINK_AND_RETURN();
 }
 
-static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func)
+static int perform_shrink(values_vec &FV, simplex_mat &V, cost_function func, void *farg)
 {
 	params_vector best = column(V, 0);
 
 	for (int j = 1; j < FV.size(); ++j) {
 		column(V, j) = best + SIGMA * (column(V, j) - best);
-		FV[j] = func(column(V, j));
+		FV[j] = func(column(V, j), farg);
 	}
 	
 	// number of function evaluations

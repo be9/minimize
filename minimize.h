@@ -6,7 +6,7 @@
 namespace minimize {
     typedef boost::numeric::ublas::vector<double> params_vector;
 
-    typedef double (*cost_function)(const params_vector &);
+    typedef double (*cost_function)(const params_vector &, void *arg);
 }
 
 #endif

@@ -17,7 +17,8 @@ PARTICULAR PURPOSE.
 
 namespace minimize { namespace hooke_jeeves {
 
-static int best_nearby(params_vector &delta, params_vector &point, double &pval, double prevbest, cost_function func);
+static int best_nearby(params_vector &delta, params_vector &point, double &pval, 
+        double prevbest, cost_function func, void *farg);
 
 static params_vector abs(const params_vector &x)
 {
@@ -34,7 +35,8 @@ inline double max(const params_vector &vec)
     return *std::max_element(vec.begin(), vec.end());
 }
 
-void run(const params_vector &x0, cost_function func, output &out, report_func reporter,
+void run(const params_vector &x0, cost_function func, void *farg, 
+        output &out, report_func reporter,
         int maxiter, double rho, double epsilon)
 {
     int i, nvars = x0.size();
@@ -49,7 +51,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
     double steplength = rho;
 
     params_vector xbefore = x0;
-    double fbefore = func(xbefore);
+    double fbefore = func(xbefore, farg);
 
     params_vector newx = x0;
     double newf = fbefore;
@@ -69,7 +71,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
         }
 
         newx = xbefore;
-        func_evals += best_nearby(delta, newx, newf, fbefore, func);
+        func_evals += best_nearby(delta, newx, newf, fbefore, func, farg);
 		
         // if we made some improvements, pursue that direction
         while (newf < fbefore) {
@@ -83,7 +85,7 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
             xbefore = tmp;
             fbefore = newf;
 
-            func_evals += best_nearby(delta, newx, newf, fbefore, func);
+            func_evals += best_nearby(delta, newx, newf, fbefore, func, farg);
 
             // if the further (optimistic) move was bad....
             if (newf >= fbefore)
@@ -115,7 +117,8 @@ void run(const params_vector &x0, cost_function func, output &out, report_func r
     out.func_evaluations = func_evals;
 }
 
-static int best_nearby(params_vector &delta, params_vector &point, double &pval, double prevbest, cost_function func)
+static int best_nearby(params_vector &delta, params_vector &point, double &pval, 
+        double prevbest, cost_function func, void *farg)
 {
     double minf = prevbest;
     int nvars = point.size();
@@ -127,7 +130,7 @@ static int best_nearby(params_vector &delta, params_vector &point, double &pval,
         // try positive step
         z[i] = point[i] + delta[i];
         
-        double ftmp = func(z); ++fevals;
+        double ftmp = func(z, farg); ++fevals;
 
         if (ftmp < minf) {
             minf = ftmp;
@@ -138,7 +141,7 @@ static int best_nearby(params_vector &delta, params_vector &point, double &pval,
         delta[i] = -delta[i];
         z[i] = point[i] + delta[i];
         
-        ftmp = func(z); ++fevals;
+        ftmp = func(z, farg); ++fevals;
 
         if (ftmp < minf) {
             minf = ftmp;
