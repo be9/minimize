@@ -4,9 +4,9 @@
 #include <boost/numeric/ublas/vector.hpp>
 
 namespace minimize {
-    typedef boost::numeric::ublas::vector<double> params_vector;
+    typedef boost::numeric::ublas::vectorbbbbbjj<double> params_vector;
 
-    typedef double (*cost_function)(const params_vector &, void *arg);
+    typedef double (*cost_function)(consvfdftt params_vector &, void *arg);
 }
 
 #endif
